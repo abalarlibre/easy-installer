@@ -1,0 +1,67 @@
+#!/bin/bash
+
+clear
+cat <<'EOF'
+########################################################
+#        _           _            _ _ _                #
+#       | |         | |          | (_) |               #
+#   __ _| |__   __ _| | __ _ _ __| |_| |__  _ __ ___   #
+#  / _` | '_ \ / _` | |/ _` | '__| | | '_ \| '__/ _ \  #
+# | (_| | |_) | (_| | | (_| | |  | | | |_) | | |  __/  #
+#  \__,_|_.__/ \__,_|_|\__,_|_|  |_|_|_.__/|_|  \___|  #
+#                                                      #                                              
+#            Copyright (C) 2025, abalarlibre           #
+########################################################
+EOF
+sleep 2
+clear
+
+                 
+# URL de Discord
+URL="https://discord.com/api/download?platform=linux&format=deb"
+
+# Archivo temporal para progreso
+TEMP_PROGRESS=$(mktemp)
+
+# Iniciar la descarga con barra de progreso en segundo plano
+{
+    wget -O discord.deb "$URL" 2>&1 | \
+    tee "$TEMP_PROGRESS" | \
+    awk '
+    /[0-9]+%/ {
+        match($0, /([0-9]+)%/, arr)
+        if (arr[1] != "") print arr[1]
+        fflush()
+    }'
+} | zenity --progress --title="Descargando Discord" --text="Descargando Discord..." --percentage=0 --no-cancel --auto-close --window-icon="/home/usuario/Documentos/.pixelpirate/Apps/Discord Debian Updater/icon.png"
+
+# Verificar si la descarga fue exitosa
+if [ ! -f discord.deb ]; then
+    zenity --error --title="Error" --text="Hubo un problema al descargar Discord. Verifica tu conexión e inténtalo de nuevo."
+    rm -f "$TEMP_PROGRESS"
+    exit 1
+fi
+
+# Eliminar archivo temporal
+rm -f "$TEMP_PROGRESS"
+
+# Mostrar ventana "Instalando..." (sin botón, se cierra automáticamente al finalizar, con icono)
+(
+    # Instalar el archivo .deb
+    sudo dpkg -i discord.deb
+
+    # Eliminar el archivo descargado
+    rm discord.deb
+) &
+
+# Esperar a que la instalación termine
+wait
+
+# Eliminar ventana "Instalando" cuando la instalación haya terminado
+kill $!
+
+# Mostrar mensaje de éxito
+zenity --info --title="¡Discord Instalado!" --text="¡Discord ha sido instalado correctamente!" --ok-label="Cerrar" --window-icon="discord-icon.png"
+
+# Opcional: eliminar acceso directo
+sudo rm /usr/share/applications/discord.desktop
